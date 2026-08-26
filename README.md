@@ -1,7 +1,7 @@
 # YouTube Summary with Gemini
 
 A tiny, open-source Chrome extension (Manifest V3). While you're watching a
-YouTube video, click the toolbar button — it opens **Gemini** with a summary
+YouTube video, click the toolbar button. It opens **Gemini** with a summary
 prompt already filled in and sent, including the video's title and link.
 
 The default prompt is intentionally short so Gemini picks a good structure; you
@@ -25,9 +25,9 @@ You must be **signed into Gemini** in the same browser for auto-fill to work.
 ## Use
 
 - On a YouTube video, the toolbar icon shows a small **green dot** in the
-  corner — that means it's ready. Click it: a Gemini tab opens, the prompt is
+  corner, and that means it's ready. Click it: a Gemini tab opens, the prompt is
   typed in and submitted, and the summary starts generating.
-- Not on a YouTube video? No green dot — clicking shows a brief `YT?` badge and
+- Not on a YouTube video? No green dot, and clicking shows a brief `YT?` badge and
   does nothing.
 - **Edit the prompt:** right-click the icon → **Options** (or `chrome://extensions`
   → Details → Extension options). The video's title and link are appended
@@ -47,7 +47,7 @@ You must be **signed into Gemini** in the same browser for auto-fill to work.
 ### The one fragile part
 
 Gemini's web app has no official "prefill" URL, so auto-fill works by typing into
-Gemini's input element directly — and Google can change that DOM without notice.
+Gemini's input element directly, and Google can change that DOM without notice.
 The content script uses **ordered fallback selectors**, and if it still can't find
 the box it shows a **copy-and-paste toast** with the prompt. It degrades; it never
 fails silently. If auto-fill ever stops working, update `EDITOR_SELECTORS` /
@@ -78,13 +78,13 @@ bash tools/pack.sh
 
 Produces, in `dist/` (gitignored):
 
-- `yt-gemini-summary.zip` — upload to the Chrome Web Store (manifest at the zip
+- `yt-gemini-summary.zip`: upload to the Chrome Web Store (manifest at the zip
   root, runtime files only).
-- `yt-gemini-summary.crx` — a signed package for self-distribution.
+- `yt-gemini-summary.crx`: a signed package for self-distribution.
 
 The first run creates `key.pem` (the signing key) and reuses it afterward, so the
 extension ID stays stable across rebuilds. `key.pem`, `dist/`, and `*.crx` are
-gitignored — **never commit the key.** Note: Chrome blocks `.crx` files installed
+gitignored, so **never commit the key.** Note: Chrome blocks `.crx` files installed
 outside the Web Store for normal users, so for everyday use either load unpacked
 or publish to the Web Store with the `.zip`.
 
@@ -92,10 +92,10 @@ or publish to the Web Store with the `.zip`.
 
 The extension sends **no data to the developer** and has **no analytics, tracking,
 or ads**. The only thing transmitted is the prompt you send to **your own** Gemini
-session — the current video's title and link are placed into that prompt for you.
+session. The current video's title and link are placed into that prompt for you.
 Your saved prompt and a short-lived session handoff live only on your device. Full
 details: [PRIVACY.md](PRIVACY.md).
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT. See [LICENSE](LICENSE).

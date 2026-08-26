@@ -1,4 +1,4 @@
-# Chrome Web Store listing — YouTube Summary with Gemini
+# Chrome Web Store listing: YouTube Summary with Gemini
 
 Everything needed for the developer-console listing. Copy/paste the text; upload the
 images from `store-assets/images/`. Regenerate images with `npm run store-assets`.
@@ -12,7 +12,7 @@ images from `store-assets/images/`. Regenerate images with `npm run store-assets
 YouTube Summary with Gemini: Open Source One-Click Summarizer
 ```
 
-**Summary** (short description, max 132 chars — this one is 123)
+**Summary** (short description, max 132 chars, and this one is 123)
 ```
 One click summarizes the YouTube video you're watching in Gemini. Editable prompt, copy fallback, no tracking. Open source.
 ```
@@ -61,33 +61,33 @@ On one click, summarize the YouTube video you are currently watching by opening 
 ```
 
 **Permission justifications**
-- `storage` —
+- `storage`:
   ```
   Saves your editable summary prompt so it persists between sessions, and holds a short-lived session handoff (the built prompt) so the Gemini tab can read it after it opens. Nothing is sent to the developer.
   ```
-- `activeTab` —
+- `activeTab`:
   ```
   When you click the toolbar button, reads only the current tab's URL and title to identify the YouTube video being summarized. No access to other tabs or to the page until you click.
   ```
-- `clipboardWrite` —
+- `clipboardWrite`:
   ```
   Powers the copy-to-clipboard fallback: if Gemini's page layout changes and the prompt can't be auto-filled, the extension copies the prompt so you can paste it yourself instead of being stuck.
   ```
-- Host permission `https://www.youtube.com/*`, `https://m.youtube.com/*` —
+- Host permission `https://www.youtube.com/*`, `https://m.youtube.com/*`:
   ```
   Detects when you are on a YouTube video so the toolbar icon can show the green "ready" dot and read the video's URL and title on click.
   ```
-- Host permission `https://gemini.google.com/*` —
+- Host permission `https://gemini.google.com/*`:
   ```
   Fills the summary prompt into Gemini's input box and submits it in your own signed-in Gemini session — the core function of the extension.
   ```
 - Remote code: **No.**
 
-**Data usage / certifications** — the extension does **not** collect or transmit any of the
+**Data usage / certifications**: the extension does **not** collect or transmit any of the
 disclosable data categories to the developer or any third party (no PII, location, financial,
 authentication, web history, user activity, or website-content collection). The only "transmission"
 is functional: the current video's title and link are placed into **your own** Gemini prompt, which
-you send to Google Gemini in your own session — that is the core feature, not data collection. Your
+you send to Google Gemini in your own session. That is the core feature, not data collection. Your
 saved prompt stays on your device. Certify all three: data is **not sold**, **not used for unrelated
 purposes**, and **not used for creditworthiness/lending**.
 
@@ -114,10 +114,10 @@ https://github.com/wizdes/yt-gemini-summary/blob/main/PRIVACY.md
 | Field | File | Size |
 |-------|------|------|
 | Store icon | `store-icon-128.png` | 128×128 |
-| Screenshot 1 | `screenshot-1-hero.png` — "Summarize any YouTube video in one click" (mock flow) | 1280×800 |
-| Screenshot 2 | `screenshot-2-welcome.png` — "Set up in seconds" (real welcome page) | 1280×800 |
-| Screenshot 3 | `screenshot-3-options.png` — "Your prompt, your way" (real options page) | 1280×800 |
-| Screenshot 4 | `screenshot-4-ready.png` — "A green dot when you're ready" (icon states) | 1280×800 |
-| Screenshot 5 | `screenshot-5-open-source.png` — "Free & open source" | 1280×800 |
+| Screenshot 1 | `screenshot-1-hero.png`, "Summarize any YouTube video in one click" (mock flow) | 1280×800 |
+| Screenshot 2 | `screenshot-2-welcome.png`, "Set up in seconds" (real welcome page) | 1280×800 |
+| Screenshot 3 | `screenshot-3-options.png`, "Your prompt, your way" (real options page) | 1280×800 |
+| Screenshot 4 | `screenshot-4-ready.png`, "A green dot when you're ready" (icon states) | 1280×800 |
+| Screenshot 5 | `screenshot-5-open-source.png`, "Free & open source" | 1280×800 |
 | Small promo tile | `promo-small-440x280.jpg` | 440×280 |
 | Marquee promo tile | `promo-marquee-1400x560.jpg` | 1400×560 |

@@ -13,7 +13,7 @@ async function ensureSessionAccess() {
       accessLevel: 'TRUSTED_AND_UNTRUSTED_CONTEXTS',
     });
   } catch {
-    // Older Chrome without setAccessLevel — content script still reads in many
+    // Older Chrome without setAccessLevel: the content script still reads in many
     // builds; the clipboard fallback covers the rest.
   }
 }
