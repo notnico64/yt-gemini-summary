@@ -1,7 +1,7 @@
 // Pure helpers shared by the service worker, the options page, and the tests.
-// No DOM, no chrome.* — keep it import-safe for `node --test`.
+// No DOM, no chrome.*, so it stays import-safe for `node --test`.
 
-// Brief on purpose: let Gemini pick the structure — it reads better than a
+// Brief on purpose: let Gemini pick the structure, because it reads better than a
 // heavily prescribed format. Edit it in the options page.
 export const DEFAULT_PROMPT = `Summarize the video:`;
 

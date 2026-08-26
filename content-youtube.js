@@ -10,7 +10,7 @@
     try {
       chrome.runtime.sendMessage({ type: 'YT_URL', url: location.href });
     } catch {
-      // service worker asleep or extension reloading — next nav retries.
+      // service worker asleep or extension reloading, so the next nav retries.
     }
   }
 

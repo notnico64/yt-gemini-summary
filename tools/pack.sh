@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Build distributable artifacts:
-#   dist/yt-gemini-summary.zip  — upload this to the Chrome Web Store
-#   dist/yt-gemini-summary.crx  — signed package for self-distribution (if Chrome is present)
+#   dist/yt-gemini-summary.zip  : upload this to the Chrome Web Store
+#   dist/yt-gemini-summary.crx  : signed package for self-distribution (if Chrome is present)
 # The signing key is kept at key.pem (gitignored) so the extension ID stays stable
 # across rebuilds. Run from anywhere:  bash tools/pack.sh
 set -euo pipefail
@@ -22,11 +22,11 @@ mkdir -p "$STAGE/icons"
 for f in "${RUNTIME[@]}"; do cp "$ROOT/$f" "$STAGE/"; done
 cp "$ROOT"/icons/*.png "$STAGE/icons/"
 
-# .zip — zip the CONTENTS of the staging dir (manifest must be at the zip root).
+# .zip: zip the CONTENTS of the staging dir (manifest must be at the zip root).
 ( cd "$STAGE" && zip -qr -X "$DIST/yt-gemini-summary.zip" . )
 echo "built dist/yt-gemini-summary.zip"
 
-# .crx — needs a real Chrome. First run generates key.pem; later runs reuse it.
+# .crx: needs a real Chrome. First run generates key.pem; later runs reuse it.
 CHROME="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 if [ -x "$CHROME" ]; then
   PROFILE="$(mktemp -d)"
