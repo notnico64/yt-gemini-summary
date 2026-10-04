@@ -136,14 +136,14 @@ sequenceDiagram
 
 ## Install and run
 
-Not on the Chrome Web Store. Install from source ("load unpacked", which means pointing Chrome at the raw folder instead of a packaged download):
+Published on the [Chrome Web Store](https://chromewebstore.google.com/detail/youtube-summary-with-gemi/alinedeonokgemjfeljbgcmcmhdefggg). To run it from source, use "load unpacked", which means pointing Chrome at the raw folder instead of a packaged download:
 
 1. Clone or download the repo.
 2. Open `chrome://extensions`, turn on **Developer mode**.
 3. **Load unpacked** → select the project folder.
 4. Pin the extension (puzzle icon → pin) so the button is visible. A welcome page opens on first install explaining this, because Chrome gives extensions no way to pin themselves (`background.js:56-62`).
 
-You must be signed into Gemini in the same browser. For distribution, `tools/pack.sh` builds into `dist/` a `.zip` (the format the Chrome Web Store accepts for uploads). Only when Chrome is found at its macOS path, it also builds a signed `.crx` (a self-contained installable package). Landing page: https://yili.dev/projects/youtube_summary_with_gemini/ (linked from the options page).
+You must be signed into Gemini in the same browser. For distribution, `tools/pack.sh` builds into `dist/` a `.zip` (the format uploaded to the Chrome Web Store). Only when Chrome is found at its macOS path, it also builds a signed `.crx` (a self-contained installable package). Landing page: https://yili.dev/projects/youtube_summary_with_gemini/ (linked from the options page).
 
 ## Limitations
 

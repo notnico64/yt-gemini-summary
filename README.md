@@ -7,17 +7,23 @@ prompt already filled in and sent, including the video's title and link.
 The default prompt is intentionally short so Gemini picks a good structure; you
 can edit it any time in the options page.
 
-## Install (load unpacked)
+Website: https://yili.dev/projects/youtube_summary_with_gemini/
 
-The extension isn't on the Chrome Web Store yet, so install it from source:
+## Install
+
+Install it from the [Chrome Web Store](https://chromewebstore.google.com/detail/youtube-summary-with-gemi/alinedeonokgemjfeljbgcmcmhdefggg).
+
+You must be **signed into Gemini** in the same browser for auto-fill to work.
+
+### From source (load unpacked)
+
+To run a local copy for development, install it from source:
 
 1. Download or clone this repository.
 2. Open `chrome://extensions`.
 3. Turn on **Developer mode** (top-right).
 4. Click **Load unpacked** and select the project folder.
 5. Pin the extension (puzzle 🧩 icon → pin) so the toolbar button is visible.
-
-You must be **signed into Gemini** in the same browser for auto-fill to work.
 
 > The icons are committed, so there's nothing to build. If you ever need to
 > regenerate them, run `python3 tools/make_icons.py` (standard library only).
@@ -85,8 +91,8 @@ Produces, in `dist/` (gitignored):
 The first run creates `key.pem` (the signing key) and reuses it afterward, so the
 extension ID stays stable across rebuilds. `key.pem`, `dist/`, and `*.crx` are
 gitignored, so **never commit the key.** Note: Chrome blocks `.crx` files installed
-outside the Web Store for normal users, so for everyday use either load unpacked
-or publish to the Web Store with the `.zip`.
+outside the Web Store for normal users, so for everyday use install it from the
+Chrome Web Store.
 
 ## Privacy
 
