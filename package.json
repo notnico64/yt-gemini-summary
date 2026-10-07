@@ -6,6 +6,7 @@
   "description": "Chrome extension: one-click summarize the current YouTube video in Gemini.",
   "scripts": {
     "test": "node --test",
+    "test:browser": "node tools/browser-check.mjs",
     "store-assets": "node store-assets/render.mjs"
   },
   "devDependencies": {

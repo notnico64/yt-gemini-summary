@@ -112,8 +112,16 @@ fails silently. If auto-fill ever stops working, update `EDITOR_SELECTORS` /
 
 ```bash
 npm test                      # run the unit tests (node --test over test/)
+npm run test:browser          # drive a real Chrome and check the page end to end
 python3 tools/make_icons.py   # regenerate the icons
 ```
+
+`npm run test:browser` launches its own throwaway Chrome profile, loads this
+checkout unpacked, and asserts what actually reaches Gemini's editor after each
+button click — plus the button placement, the chip styling, and the options
+page. It needs Google Chrome installed and network access, takes about two
+minutes, and writes screenshots to `output/playwright/` (gitignored). The unit
+tests stay fast and offline; use this one when touching page integration.
 
 `lib.js` holds the pure, testable logic: the four `PROMPT_MODES` with their
 defaults, mode lookup and validation, the legacy-prompt migration

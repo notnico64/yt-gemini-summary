@@ -23,16 +23,23 @@
   const NS = 'ytgs';
   const STYLE_ID = `${NS}-style`;
 
-  // Where the button group goes. The Share/Save pill row is the intended home.
-  // The rest are fallbacks for when YouTube's own markup changes. Appending
-  // (never wrapping) means we can't break YouTube's layout.
-  const PREFERRED_HOST = '#top-level-buttons-computed';
-  const FALLBACK_HOSTS = ['#inline-actions-inner', '#owner-buttons', '#meta'];
+  // Where the button group goes: its own full-width line directly under the
+  // channel/actions row. It deliberately does NOT go inside
+  // #top-level-buttons-computed — that strip is `flex-wrap: nowrap` and already
+  // holds Like/Dislike/Share, so four more chips there squeeze YouTube's own
+  // Save and "..." buttons down to bare icons.
+  //
+  // `#top-row` is the channel + action row, but its parent is itself a flex
+  // row during parts of YouTube's render, so inserting next to it lands us back
+  // inline. We therefore climb to the first block-level ancestor and insert
+  // there, which is what actually gives the group its own line.
+  const ANCHOR_ROW = '#top-row';
+  const FALLBACK_HOSTS = ['ytd-watch-metadata', '#meta'];
 
-  // On a cold load the Share row can take many seconds to render. Placing the
+  // On a cold load the action row can take many seconds to render. Placing the
   // group in a fallback first and moving it later would make it visibly jump,
-  // so wait this long for the preferred host before settling for a fallback.
-  const PREFERRED_HOST_WAIT_MS = 8000;
+  // so wait this long for the anchor before settling for a fallback.
+  const ANCHOR_WAIT_MS = 8000;
 
   // YouTube is a single page app: it swaps content in place and re-renders
   // chunks on its own, so we re-sync on its navigation events and on changes
@@ -76,19 +83,27 @@
         flex-wrap: wrap;
         align-items: center;
         gap: 8px;
-        margin: 8px 0 4px;
-        font-family: "Roboto", "YouTube Sans", system-ui, sans-serif;
+        /* Own line, tucked under the action row. */
+        flex-basis: 100%;
+        margin: 8px 0 12px;
       }
+      /* Matches YouTube's own tonal chip buttons: 40px tall, 20px radius, no
+         border, same background/hover, Roboto 14px/500. */
       .${NS}-btn {
         appearance: none;
         cursor: pointer;
-        font: inherit;
-        font-size: 13px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        height: 40px;
+        padding: 0 16px;
+        border: 0;
+        border-radius: 20px;
+        font-family: "Roboto", "Arial", sans-serif;
+        font-size: 14px;
         font-weight: 500;
         line-height: 1;
-        padding: 8px 14px;
-        border-radius: 18px;
-        border: 1px solid rgba(0, 0, 0, 0.1);
         background: rgba(0, 0, 0, 0.05);
         color: #0f0f0f;
         white-space: nowrap;
@@ -101,15 +116,33 @@
         outline-offset: 2px;
       }
       .${NS}-btn[disabled] { opacity: 0.6; cursor: progress; }
+      .${NS}-btn svg { flex: none; opacity: 0.9; }
       /* YouTube flips a "dark" attribute on <html>; follow that, not the OS. */
       html[dark] .${NS}-btn {
-        background: #272727;
-        border-color: rgba(255, 255, 255, 0.2);
+        background: rgba(255, 255, 255, 0.1);
         color: #f1f1f1;
       }
-      html[dark] .${NS}-btn:hover { background: #3f3f3f; }
+      html[dark] .${NS}-btn:hover { background: rgba(255, 255, 255, 0.2); }
     `;
     (document.head || document.documentElement).appendChild(style);
+  }
+
+  // A small four-point sparkle, so the row reads as an AI action and not as
+  // stray YouTube buttons.
+  const SPARKLE_PATH =
+    'M12 2c.6 3.4 2.6 5.4 6 6-3.4.6-5.4 2.6-6 6-.6-3.4-2.6-5.4-6-6 3.4-.6 5.4-2.6 6-6z';
+
+  function sparkle() {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.setAttribute('width', '16');
+    svg.setAttribute('height', '16');
+    svg.setAttribute('fill', 'currentColor');
+    svg.setAttribute('aria-hidden', 'true');
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('d', SPARKLE_PATH);
+    svg.appendChild(path);
+    return svg;
   }
 
   function buildBar() {
@@ -122,7 +155,7 @@
       btn.type = 'button';
       btn.className = `${NS}-btn`;
       btn.dataset.ytgs = id;
-      btn.textContent = label;
+      btn.append(sparkle(), document.createTextNode(label));
       btn.title = `Ask Gemini: ${label}`;
       btn.addEventListener('click', () => {
         btn.disabled = true;
@@ -140,16 +173,39 @@
     return bar;
   }
 
-  function findHost() {
-    const preferred = document.querySelector(PREFERRED_HOST);
-    if (preferred) return preferred;
-    // Only accept a fallback once the preferred host has had its chance.
-    if (Date.now() - watchPageSince < PREFERRED_HOST_WAIT_MS) return null;
+  // Where the group should sit: `{ parent, before }`, where `before === null`
+  // means "append". Returns null when nothing suitable is on the page yet.
+  function findSlot() {
+    const anchor = document.querySelector(ANCHOR_ROW);
+    if (anchor) {
+      // Climb out of any flex row: a flex parent would lay the group out
+      // beside the native buttons instead of under them.
+      let node = anchor;
+      while (
+        node.parentElement &&
+        getComputedStyle(node.parentElement).display.includes('flex')
+      ) {
+        node = node.parentElement;
+      }
+      if (node.parentElement) {
+        return { parent: node.parentElement, before: node.nextElementSibling };
+      }
+    }
+    // Only accept a fallback once the anchor has had its chance.
+    if (Date.now() - watchPageSince < ANCHOR_WAIT_MS) return null;
     for (const selector of FALLBACK_HOSTS) {
       const el = document.querySelector(selector);
-      if (el) return el;
+      if (el) return { parent: el, before: null };
     }
     return null;
+  }
+
+  // True when the group already occupies exactly that slot. Re-inserting a node
+  // that is already in place still fires a childList mutation, which would feed
+  // the observer below and spin forever, so this check matters.
+  function isPlaced(group, slot) {
+    if (group.parentElement !== slot.parent) return false;
+    return slot.before ? slot.before === group : group.nextElementSibling === null;
   }
 
   // Make the page match the current URL: the group exists exactly once on a
@@ -165,15 +221,13 @@
     // in-app navigation gets the same grace period as a cold load.
     if (!watchPageSince) watchPageSince = Date.now();
     ensureStyle();
-    const host = findHost();
-    if (!host) {
+    const slot = findSlot();
+    if (!slot) {
       bar?.remove();
       return;
     }
     const group = buildBar();
-    // Re-appending an already-placed node is a no-op move only when the host
-    // changed, which is exactly when we want to move it.
-    if (group.parentNode !== host) host.appendChild(group);
+    if (!isPlaced(group, slot)) slot.parent.insertBefore(group, slot.before);
     observe();
   }
 
