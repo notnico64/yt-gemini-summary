@@ -14,7 +14,7 @@
 // fallback toast), not what we hope the worker wrote, so these check the real
 // user-visible result of a click.
 import { spawn } from 'node:child_process';
-import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -22,6 +22,9 @@ import { fileURLToPath } from 'node:url';
 // The extension under test is the repository root, not the caller's cwd.
 const EXT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const SHOTS = join(EXT, 'output', 'playwright');
+const DISK_VERSION = JSON.parse(
+  readFileSync(join(EXT, 'manifest.json'), 'utf8'),
+).version;
 mkdirSync(SHOTS, { recursive: true });
 const CHROME = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
 const PORT = 9334;
@@ -41,6 +44,8 @@ const proc = spawn(
     `--user-data-dir=${dir}`,
     `--remote-debugging-port=${PORT}`,
     '--enable-unsafe-extension-debugging',
+    // These runs open real watch pages, which autoplay. Stay silent.
+    '--mute-audio',
     '--window-size=1440,900',
     '--no-first-run',
     '--no-default-browser-check',
@@ -149,9 +154,39 @@ const watchUrl = (v) => `https://www.youtube.com/watch?v=${v}`;
 const BAR = '.ytgs-bar';
 const MODE_BTN = (m) => `.ytgs-bar button[data-ytgs="${m}"]`;
 
-async function shot(name, tab = page) {
-  const { data } = await tab.call('Page.captureScreenshot', { format: 'png' });
+async function shot(name, tab = page, clip) {
+  const { data } = await tab.call('Page.captureScreenshot', {
+    format: 'png',
+    ...(clip ? { clip: { ...clip, scale: 1 } } : {}),
+  });
   writeFileSync(join(SHOTS, name), Buffer.from(data, 'base64'));
+}
+
+// Close-up of the button row, so a run leaves behind something a human can
+// actually judge the styling from. Native chips are included on purpose: the
+// whole point is to compare ours against YouTube's own.
+async function shotBar(name) {
+  // Scroll it into view first: captureScreenshot's clip is in page
+  // coordinates, and a region outside the viewport comes back blank.
+  await page.evaluate(`document.querySelector('.ytgs-bar')
+    ?.scrollIntoView({ block: 'center' })`);
+  await wait(500);
+  const box = await page.evaluate(`(() => {
+    const bar = document.querySelector('.ytgs-bar');
+    if (!bar) return null;
+    const strip = document.querySelector('ytd-menu-renderer');
+    const b = bar.getBoundingClientRect();
+    const s = strip?.getBoundingClientRect() ?? b;
+    const pad = 12;
+    return JSON.stringify({
+      x: window.scrollX + Math.max(0, Math.min(b.left, s.left) - pad),
+      y: window.scrollY + Math.max(0, Math.min(b.top, s.top) - pad),
+      width: Math.min(window.innerWidth, Math.max(b.right, s.right) + pad)
+        - Math.max(0, Math.min(b.left, s.left) - pad),
+      height: Math.max(b.bottom, s.bottom) - Math.min(b.top, s.top) + pad * 2,
+    });
+  })()`);
+  if (box) await shot(name, page, JSON.parse(box));
 }
 
 async function goto(url) {
@@ -326,7 +361,9 @@ for (let i = 0; i < 120; i++) {
 const layout = await page.evaluate(`(() => {
   const bar = document.querySelector('.ytgs-bar');
   const row = document.querySelector('#top-level-buttons-computed');
-  const topRow = document.querySelector('#top-row');
+  // The skeleton ships its own #top-row, so pick the one in the real metadata.
+  const topRow = [...document.querySelectorAll('#top-row')]
+    .find((el) => el.closest('ytd-watch-metadata'));
   const renderer = document.querySelector('ytd-menu-renderer');
   const br = bar.getBoundingClientRect();
   const rr = row.getBoundingClientRect();
@@ -361,6 +398,38 @@ record('1c', 'all native YouTube buttons stay on screen',
   L.nativeOffscreen.length === 0,
   `natives=[${L.nativeLabels.join(', ')}] offscreen=[${L.nativeOffscreen.join(', ')}]`);
 await shot('01-watch-light.png');
+
+// ---------- 1d. survives scrolling ----------
+// YouTube renders a #watch-page-skeleton first, and that placeholder contains
+// its own #top-row. Placing the group there means YouTube deletes it together
+// with the skeleton, and the buttons are gone for the rest of the visit.
+// Scroll away and back, which is also what triggers YouTube's lazy re-layout.
+for (const y of [0, 700, 1800, 3000]) {
+  await page.evaluate(`window.scrollTo(0, ${y})`);
+  await wait(1200);
+}
+await page.evaluate('window.scrollTo(0, 0)');
+await wait(1200);
+const afterScroll = await page.evaluate(`(() => {
+  const bar = document.querySelector('.ytgs-bar');
+  if (!bar) return JSON.stringify({ present: false });
+  const r = bar.getBoundingClientRect();
+  const p = bar.parentElement;
+  return JSON.stringify({
+    present: true,
+    visible: r.width > 0 && r.height > 0,
+    count: document.querySelectorAll('.ytgs-bar').length,
+    parent: p.id || p.tagName.toLowerCase(),
+    inRealMetadata: !!bar.closest('ytd-watch-metadata'),
+  });
+})()`);
+const S = JSON.parse(afterScroll);
+record(
+  '1d',
+  'button group survives scrolling and stays in the real metadata',
+  S.present && S.visible && S.count === 1 && S.inRealMetadata,
+  afterScroll,
+);
 
 // ---------- 4. non-video pages ----------
 const offWatch = [];
@@ -470,6 +539,19 @@ for (const [mode, head] of Object.entries(expectedHeads)) {
 
 // ---------- 7. custom prompt persistence ----------
 const options = await newTab(`chrome-extension://${extId}/options.html`);
+
+// The version Chrome actually loaded, not just what we wrote to disk: catches
+// a manifest that fails to parse, or a stale copy of the repo being loaded.
+const loadedVersion = await options.evaluate(
+  'chrome.runtime.getManifest().version',
+);
+record(
+  '0b',
+  'Chrome reports the manifest version we shipped',
+  loadedVersion === DISK_VERSION,
+  `chrome=${loadedVersion} manifest.json=${DISK_VERSION}`,
+);
+
 const optValue = () =>
   options.evaluate("document.getElementById('prompt').value");
 const waitForPrompt = async () => {
@@ -562,8 +644,17 @@ const themePair = await page.evaluate(`(() => {
   const read = () => {
     const b = document.querySelector('.ytgs-bar button');
     if (!b) return null;
+    // The button transitions background-color, and getComputedStyle returns
+    // the in-flight animated value: reading right after the attribute flips
+    // reports the OLD colour, which silently weakened this assertion.
+    // getComputedStyle is a LIVE object, so the values must be copied out
+    // before the transition is restored, not after.
+    const prev = b.style.transition;
+    b.style.transition = 'none';
     const s = getComputedStyle(b);
-    return s.backgroundColor + ' / ' + s.color;
+    const out = s.backgroundColor + ' / ' + s.color;
+    b.style.transition = prev;
+    return out;
   };
   const html = document.documentElement;
   const had = html.getAttribute('dark');
@@ -576,6 +667,11 @@ const themePair = await page.evaluate(`(() => {
 })()`);
 const { light, dark } = JSON.parse(themePair);
 await shot('03-watch-theme.png');
+// 03 is the full page in dark mode; the close-ups are what the styling is
+// actually judged from. The bar was restored to dark above.
+await page.evaluate('window.scrollTo(0, 0)');
+await wait(300);
+await shotBar('04-bar-dark.png');
 record(
   12,
   'light and dark themes paint the buttons differently',
@@ -626,6 +722,76 @@ record('12c', 'chip style matches YouTube native buttons',
   mismatch.length
     ? `differs on ${mismatch.join(', ')}: ours=${JSON.stringify(C)}`
     : JSON.stringify(C));
+
+// The sparkle path only covers x 6-18 / y 2-14 of a 24 grid, so a naive
+// viewBox="0 0 24 24" would draw it at half the box and read as a tiny tick.
+// Check the rendered size AND that the glyph actually fills that box.
+const icon = await page.evaluate(`(() => {
+  const svg = document.querySelector('.ytgs-bar button svg');
+  if (!svg) return JSON.stringify({ found: false });
+  const r = svg.getBoundingClientRect();
+  const p = svg.querySelector('path').getBBox();
+  const vb = svg.viewBox.baseVal;
+  const fillW = (p.width / vb.width) * 100;
+  const fillH = (p.height / vb.height) * 100;
+  return JSON.stringify({
+    found: true,
+    w: Math.round(r.width), h: Math.round(r.height),
+    fillW: Math.round(fillW), fillH: Math.round(fillH),
+    centered: Math.abs(p.x - vb.x) < 0.5 && Math.abs(p.y - vb.y) < 0.5,
+  });
+})()`);
+const I = JSON.parse(icon);
+record(
+  '12d',
+  'sparkle icon renders at full size and fills its box',
+  I.found && I.w >= 16 && I.h >= 16 && I.fillW >= 95 && I.fillH >= 95 && I.centered,
+  icon,
+);
+
+// The group should line up with the right edge of YouTube's own chips, not
+// start from the left margin of the column.
+const align = await page.evaluate(`(() => {
+  const bar = document.querySelector('.ytgs-bar');
+  const btns = [...bar.querySelectorAll('button')];
+  const renderer = document.querySelector('ytd-menu-renderer');
+  const last = btns[btns.length - 1].getBoundingClientRect();
+  const host = bar.parentElement.getBoundingClientRect();
+  // YouTube's own right-most control in the same visual column. The chips are
+  // custom elements (ytd-button-renderer / yt-button-view-model), not <button>.
+  const natives = [...(renderer?.querySelectorAll(
+      'button, ytd-button-renderer, yt-button-view-model, yt-icon-button') ?? [])]
+    .map((el) => el.getBoundingClientRect())
+    .filter((r) => r.width > 2);
+  const nativeRight = natives.length
+    ? Math.max(...natives.map((r) => r.right))
+    : null;
+  return JSON.stringify({
+    lastBtnRight: Math.round(last.right),
+    hostRight: Math.round(host.right),
+    nativeRight: nativeRight === null ? null : Math.round(nativeRight),
+  });
+})()`);
+const A = JSON.parse(align);
+record(
+  '12e',
+  'button group is right-aligned with the native chips',
+  A.nativeRight !== null && Math.abs(A.lastBtnRight - A.nativeRight) <= 4,
+  align,
+);
+
+// A genuine light-theme close-up. Stripping the `dark` attribute alone only
+// flips our own rule while YouTube's dark background stays dark, which makes
+// the buttons look washed out and is not what a light-mode user sees. This
+// profile has no saved YouTube theme, so YouTube follows the OS preference —
+// emulate a light one and reload so both sides are genuinely light.
+await page.call('Emulation.setEmulatedMedia', {
+  features: [{ name: 'prefers-color-scheme', value: 'light' }],
+});
+await goto(watchUrl(VIDEO_A));
+await waitForBar();
+await wait(1500);
+await shotBar('05-bar-light.png');
 
 // ---------- wrap up ----------
 await page.close();

@@ -82,6 +82,9 @@
         display: flex;
         flex-wrap: wrap;
         align-items: center;
+        /* YouTube's own action chips sit at the right edge of the row; match
+           them instead of starting from the left margin. */
+        justify-content: flex-end;
         gap: 8px;
         /* Own line, tucked under the action row. */
         flex-basis: 100%;
@@ -127,16 +130,19 @@
     (document.head || document.documentElement).appendChild(style);
   }
 
-  // A small four-point sparkle, so the row reads as an AI action and not as
-  // stray YouTube buttons.
+  // A four-point sparkle, so the row reads as an AI action and not as stray
+  // YouTube buttons. The path only spans x 6-18, y 2-14 of the usual 24x24
+  // grid, so the viewBox is cropped to that box: rendering it in a 24 grid
+  // would waste half the box on padding and draw a visibly tiny glyph.
   const SPARKLE_PATH =
     'M12 2c.6 3.4 2.6 5.4 6 6-3.4.6-5.4 2.6-6 6-.6-3.4-2.6-5.4-6-6 3.4-.6 5.4-2.6 6-6z';
+  const SPARKLE_BOX = '6 2 12 12';
 
   function sparkle() {
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    svg.setAttribute('viewBox', '0 0 24 24');
-    svg.setAttribute('width', '16');
-    svg.setAttribute('height', '16');
+    svg.setAttribute('viewBox', SPARKLE_BOX);
+    svg.setAttribute('width', '18');
+    svg.setAttribute('height', '18');
     svg.setAttribute('fill', 'currentColor');
     svg.setAttribute('aria-hidden', 'true');
     const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
@@ -176,7 +182,15 @@
   // Where the group should sit: `{ parent, before }`, where `before === null`
   // means "append". Returns null when nothing suitable is on the page yet.
   function findSlot() {
-    const anchor = document.querySelector(ANCHOR_ROW);
+    // Only the real metadata row counts. While the page is still loading,
+    // YouTube ships a #watch-page-skeleton (and later a #meta-skeleton) that
+    // also contains an element with id "top-row". Those are placeholders: the
+    // skeleton is thrown away wholesale once the real data arrives, taking
+    // anything we inserted with it, and the stale #meta-skeleton keeps a 0x0
+    // #top-row around afterwards for querySelector to pick up. So require the
+    // row to live inside ytd-watch-metadata.
+    const anchor = [...document.querySelectorAll(ANCHOR_ROW)]
+      .find((el) => el.closest('ytd-watch-metadata'));
     if (anchor) {
       // Climb out of any flex row: a flex parent would lay the group out
       // beside the native buttons instead of under them.
@@ -193,8 +207,13 @@
     }
     // Only accept a fallback once the anchor has had its chance.
     if (Date.now() - watchPageSince < ANCHOR_WAIT_MS) return null;
+    // Same skeleton caveat: the placeholder #meta and the real one share an
+    // id, so take the last (real) one and skip anything zero-sized.
     for (const selector of FALLBACK_HOSTS) {
-      const el = document.querySelector(selector);
+      const candidates = [...document.querySelectorAll(selector)];
+      const el = candidates.reverse().find(
+        (c) => c.getBoundingClientRect().width > 0,
+      );
       if (el) return { parent: el, before: null };
     }
     return null;
