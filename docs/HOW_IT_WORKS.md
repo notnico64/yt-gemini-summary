@@ -21,7 +21,7 @@ This is a small Chrome extension that adds one button to your browser. While you
 
 **Extension storage.** Chrome gives extensions a few small notepads:
 
-- `chrome.storage.sync` survives restarts and, if you use Chrome's sync feature, follows you to your other computers. Used for your custom prompt (`options.js:19`).
+- `chrome.storage.sync` survives restarts and, if you use Chrome's sync feature, follows you to your other computers. Used for your four custom prompts.
 - `chrome.storage.session` is wiped when the browser closes. Used as a short-lived hand-off note between the brain and the Gemini script (`background.js:76`).
 
 ## The whole trip, end to end
@@ -30,7 +30,7 @@ This is a small Chrome extension that adds one button to your browser. While you
 
 **Step 1, you click the button.** The service worker wakes up (`background.js:64`). It takes the tab's URL and *canonicalizes* it: it converts any of the many spellings of a YouTube link (`youtu.be/ID`, `/shorts/ID`, `/live/ID`, `/embed/ID`, `m.youtube.com`, `music.youtube.com`) into the one standard form `https://www.youtube.com/watch?v=ID`, or `null` if it's not a single video (`lib.js:14-46`). A video ID is exactly 11 characters from the set letters, digits, `-`, `_`, and that's the test. Not a video? A brief red `YT?` badge flashes on the icon and nothing else happens (`background.js:67`).
 
-**Step 2, build the prompt.** The worker loads your saved instructions (or the default, just `Summarize the video:`) and appends the video's title and canonical link (`lib.js:59-63`). The title comes from the tab title, cleaned of YouTube's decorations like a leading unread count `(3) ` and the trailing ` - YouTube` (`lib.js:50-55`).
+**Step 2, build the prompt.** The worker loads your saved prompt for the requested action (or that action's default) and appends the video's title and canonical link. There are four actions — 总结, 深入分析, 事实核查, and 技术解析 — each with its own prompt, defined once in `lib.js` as `PROMPT_MODES`. The title comes from the tab title, cleaned of YouTube's decorations like a leading unread count `(3) ` and the trailing ` - YouTube`.
 
 **Step 3, the hand-off.** Here's the puzzle. The service worker is about to open a Gemini tab, but it has no hands inside web pages (only content scripts do). It might also be back asleep by the time the page loads. The solution is that it writes the prompt onto the session notepad under the key `pendingGeminiPrompt`, with a timestamp (`background.js:76`), then opens `gemini.google.com/app` (`background.js:77`). Two wrinkles. First, that notepad is normally readable only by the extension's own pages, and content scripts, which live inside other websites, don't qualify. So the worker first flips a switch (`setAccessLevel`) letting them read it too (`background.js:10-22`). Second, there is only one note: click summarize on two videos back-to-back and the second note replaces the first before its tab reads it.
 
@@ -54,7 +54,7 @@ Gemini has no official "open with this question pre-typed" URL. So the extension
 - **Canonicalize URLs in one shared function:** YouTube links come in at least six shapes; normalizing them in `lib.js` means one tested code path decides "is this a video?" for both the green dot and the click.
 - **`lib.js` has no DOM and no `chrome.*` calls:** that means Node.js (a program that runs JavaScript outside any browser) can load it directly. So the tricky logic (URL parsing, title cleanup, prompt building) gets checked automatically by the tests in `test/lib.test.mjs` (`npm test`) without ever opening Chrome. Those tests cover only this file. The browser-side behavior is not auto-tested.
 - **Icon swap instead of Chrome's badge for the green dot:** Chrome's built-in badge is a large colored rectangle with text; a subtle dot isn't possible with it, so two icon sets are shipped and swapped per-tab (`background.js:34-46`). The badge is still used for the transient `YT?` error flash, where loud is fine.
-- **Brief default prompt:** `Summarize the video:` and nothing more, because Gemini picks a better structure on its own than a heavily prescribed format (`lib.js:4-6`). Your title and link are appended automatically so a custom prompt never has to include them.
+- **Four prompts, defined once:** `PROMPT_MODES` in `lib.js` lists all four actions with their labels and default prompts. The buttons, the options page, the service worker's validation, and the tests all read from that one list, so a fifth action would be a single edit. Your title and link are appended automatically, so a prompt never has to include them.
 
 ## Diagrams
 
@@ -68,7 +68,7 @@ flowchart LR
     subgraph EXT[Extension background]
         BG[background.js<br/>service worker]
         SS[(chrome.storage.session<br/>pending prompt)]
-        SY[(chrome.storage.sync<br/>custom prompt)]
+        SY[(chrome.storage.sync<br/>four prompts)]
         OPT[options.html/js<br/>edit the prompt]
     end
     subgraph GM[Gemini tab]
@@ -92,7 +92,7 @@ flowchart TD
     B -- "no: not a video page" --> C[Click flashes YT? badge<br/>nothing happens]
     C --> A
     B -- yes --> D[Click the icon]
-    D --> E[Worker canonicalizes URL,<br/>builds prompt from saved<br/>instructions + title + link]
+    D --> E[Worker canonicalizes URL,<br/>builds prompt from the<br/>action's saved text + title + link]
     E --> F[Prompt stashed in<br/>session storage]
     F --> G[Gemini tab opens]
     G --> H{Auto-fill finds<br/>the input box?}
@@ -147,6 +147,6 @@ You must be signed into Gemini in the same browser. For distribution, `tools/pac
 
 ## Limitations
 
-- In practice Gemini can only watch **public** videos. That's Gemini's behavior, not the extension's. The extension always sends the same prompt (instructions + title + link) and never checks a video's visibility.
+- In practice Gemini can only watch **public** videos. That's Gemini's behavior, not the extension's. The extension always sends the prompt of the action you clicked (its text + title + link) and never checks a video's visibility.
 - If Google reshuffles Gemini's page structure past all the fallback selectors, auto-fill degrades to the copy-paste toast until `EDITOR_SELECTORS` / `SEND_SELECTORS` in `content-gemini.js` are updated.
 - The source contains no analytics, tracking, or developer server, so nothing is ever sent to the developer. Your Gemini conversation is between you and Google, and your saved prompt may travel through Chrome's own sync service if you have Chrome sync enabled (see `PRIVACY.md`).

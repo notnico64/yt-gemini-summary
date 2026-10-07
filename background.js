@@ -1,9 +1,17 @@
 // Service worker (module). On toolbar click: if the active tab is a YouTube
 // video, build the prompt, stash it, and open Gemini. The content script picks
 // it up there.
-import { canonicalizeYouTubeUrl, stripTitle, buildPrompt, DEFAULT_PROMPT } from './lib.js';
+import {
+  canonicalizeYouTubeUrl,
+  stripTitle,
+  buildPrompt,
+  resolvePrompts,
+  getPromptForMode,
+  isPromptMode,
+} from './lib.js';
 
 const PENDING_KEY = 'pendingGeminiPrompt';
+const GEMINI_URL = 'https://gemini.google.com/app';
 
 // session storage is TRUSTED_CONTEXTS-only by default; the content script runs
 // in an untrusted context, so widen access or it can't read the prompt.
@@ -61,18 +69,46 @@ chrome.runtime.onInstalled.addListener((details) => {
   }
 });
 
-chrome.action.onClicked.addListener(async (tab) => {
-  const canonical = canonicalizeYouTubeUrl(tab?.url || '');
+// The one place that turns a YouTube video into an open Gemini conversation.
+// Both entry points (toolbar click, page button message) funnel through here so
+// there's a single place that canonicalizes the URL, picks the prompt, and does
+// the storage hand-off. Returns false when the URL isn't a single video.
+async function openGeminiForVideo(url, title, mode) {
+  const canonical = canonicalizeYouTubeUrl(url || '');
   if (!canonical) {
-    await flashBadge(tab?.id, 'YT?');
-    return;
+    return false;
   }
 
-  const title = stripTitle(tab.title);
-  const stored = await chrome.storage.sync.get('instructions');
-  const prompt = buildPrompt(stored.instructions || DEFAULT_PROMPT, title, canonical);
+  const stored = await chrome.storage.sync.get(null);
+  const { prompts } = resolvePrompts(stored);
+  const instructions = getPromptForMode(prompts, mode);
+  if (instructions == null) return false;
+  const prompt = buildPrompt(instructions, stripTitle(title), canonical);
 
   await ensureSessionAccess();
   await chrome.storage.session.set({ [PENDING_KEY]: { prompt, ts: Date.now() } });
-  await chrome.tabs.create({ url: 'https://gemini.google.com/app' });
+  await chrome.tabs.create({ url: GEMINI_URL });
+  return true;
+}
+
+chrome.action.onClicked.addListener(async (tab) => {
+  const opened = await openGeminiForVideo(tab?.url, tab?.title, 'summary');
+  if (!opened) await flashBadge(tab?.id, 'YT?');
+});
+
+// The four on-page buttons send { type: 'OPEN_GEMINI', mode }. The page is
+// untrusted input: check who sent it, that they're on a YouTube video, and that
+// the mode is one of our four ids. Never trust a prompt or storage key from a
+// page — the mode only selects which stored prompt we load ourselves.
+chrome.runtime.onMessage.addListener((msg, sender) => {
+  if (msg?.type !== 'OPEN_GEMINI') return;
+
+  const tab = sender.tab;
+  if (!tab || tab.id == null) return;
+  if (!canonicalizeYouTubeUrl(tab.url || '')) return;
+  if (!isPromptMode(msg.mode)) return;
+
+  openGeminiForVideo(tab.url, tab.title, msg.mode).catch(() => {
+    flashBadge(tab.id, 'YT?');
+  });
 });

@@ -8,16 +8,31 @@
 </head>
 <body>
   <main>
-    <h1>Summary prompt</h1>
+    <h1>Prompts</h1>
     <p class="hint">
-      This is the instruction Gemini gets when you click the toolbar button.
-      The video’s <strong>title and link are added automatically</strong> — you
-      don’t need to include them.
+      One prompt per action. Each is the instruction Gemini gets when you click
+      that action — either one of the four buttons on a YouTube watch page or
+      the toolbar button, which always uses <strong>总结 (Summary)</strong>.
+      The video’s <strong>title and link are added automatically</strong> to
+      whichever prompt you pick, so your text never needs to include them.
     </p>
-    <textarea id="prompt" spellcheck="false" aria-label="Summary prompt"></textarea>
+    <div class="tabs" role="tablist" aria-label="Prompt actions">
+      <button id="tab-summary" class="tab" type="button" role="tab" data-mode="summary" aria-controls="panel">总结</button>
+      <button id="tab-deep" class="tab" type="button" role="tab" data-mode="deep" aria-controls="panel">深入分析</button>
+      <button id="tab-factcheck" class="tab" type="button" role="tab" data-mode="factcheck" aria-controls="panel">事实核查</button>
+      <button id="tab-technical" class="tab" type="button" role="tab" data-mode="technical" aria-controls="panel">技术解析</button>
+    </div>
+    <section id="panel" class="panel" role="tabpanel" aria-labelledby="tab-summary">
+      <div class="panel-head">
+        <label id="panel-label" for="prompt">总结</label>
+        <span id="panel-note" class="panel-note"></span>
+        <button id="reset-one" type="button" class="secondary small">Reset this prompt</button>
+      </div>
+      <textarea id="prompt" spellcheck="false" aria-labelledby="panel-label"></textarea>
+    </section>
     <div class="actions">
-      <button id="save" type="button">Save</button>
-      <button id="reset" type="button" class="secondary">Reset to default</button>
+      <button id="save" type="button">Save all</button>
+      <button id="reset-all" type="button" class="secondary">Reset all to defaults</button>
       <span id="status" role="status" aria-live="polite"></span>
     </div>
     <footer class="about">

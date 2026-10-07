@@ -3,14 +3,15 @@
 _Last updated: 2026-06-21_
 
 YouTube Summary with Gemini is a Chrome extension (Manifest V3) that, on one click,
-summarizes the YouTube video you are watching by opening Google Gemini and
-auto-filling a summary prompt. It is built to be private by default.
+summarizes (or otherwise analyzes) the YouTube video you are watching by opening
+Google Gemini and auto-filling a prompt. It is built to be private by default.
 
 ## What it stores
 
 The extension stores, **locally on your device** via Chrome's `storage` API:
 
-- your editable summary prompt (so it persists between sessions), and
+- your editable prompts (four of them: summary, deep analysis, fact check, and
+  technical analysis, so they persist between sessions), and
 - a short-lived session handoff, the prompt it just built, so the freshly
   opened Gemini tab can read it. This is cleared with your browser session.
 
@@ -21,17 +22,18 @@ That's it. None of this is sent to the developer.
 The extension sends **no data to the developer** and contains **no analytics,
 telemetry, tracking, or ads**.
 
-The only "transmission" is the core feature itself. When you click the button, the
-current video's **title and link** are placed into a prompt. That prompt is then typed
-into **your own, signed-in Google Gemini session** and submitted, exactly as if you had
-typed it yourself. That prompt goes to Google Gemini under your account, governed by
-Google's own privacy terms. The extension is not a party to it and keeps no copy on
-any server (there is no server).
+The only "transmission" is the core feature itself. When you click one of the
+buttons (on the YouTube page or the toolbar), the current video's **title and
+link** are placed into a prompt. That prompt is then typed into **your own,
+signed-in Google Gemini session** and submitted, exactly as if you had typed it
+yourself. That prompt goes to Google Gemini under your account, governed by
+Google's own privacy terms. The extension is not a party to it and keeps no copy
+on any server (there is no server).
 
 ## What it accesses, and when
 
 - It reads the **current tab's URL and title only when you click** the toolbar
-  button (via `activeTab`), to identify the video.
+  button (via `activeTab`) or one of the on-page buttons, to identify the video.
 - It detects when you are on a YouTube page so the toolbar icon can show the green
   "ready" dot (host access to youtube.com).
 - It fills and submits the prompt on gemini.google.com (host access to that site).
