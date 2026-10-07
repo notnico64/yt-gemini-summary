@@ -9,6 +9,7 @@
     "store-assets": "node store-assets/render.mjs"
   },
   "devDependencies": {
-    "@playwright/test": "^1.49.0"
+    "@playwright/test": "^1.49.0",
+    "playwright-core": "^1.63.0"
   }
 }

@@ -32,8 +32,10 @@ function note(mode) {
   return mode === 'summary' ? 'The toolbar button uses this prompt too.' : '';
 }
 
-function selectMode(mode) {
-  drafts[active] = $prompt.value;
+function selectMode(mode, { sync = true } = {}) {
+  // On the very first render the textarea is still empty, so copying it back
+  // would wipe the prompt we just loaded. Only sync on later switches.
+  if (sync) drafts[active] = $prompt.value;
   active = mode;
   $prompt.value = drafts[mode];
   $panelLabel.textContent = PROMPT_MODES.find((m) => m.id === mode).label;
@@ -57,7 +59,7 @@ async function load() {
     drafts[active] = $prompt.value;
     $panel.dataset.isDefault = String(isDefault(active));
   });
-  selectMode(active);
+  selectMode(active, { sync: false });
 
   // The legacy value is deliberately NOT written back here: the service worker
   // resolves it on the fly, so simply opening Options never counts as editing.
@@ -80,7 +82,7 @@ document.getElementById('reset-one').addEventListener('click', () => {
 
 document.getElementById('reset-all').addEventListener('click', () => {
   for (const { id } of PROMPT_MODES) drafts[id] = DEFAULT_PROMPTS[id];
-  selectMode(active);
+  selectMode(active, { sync: false });
   flash('All prompts reset — press Save all to keep');
 });
 

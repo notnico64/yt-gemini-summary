@@ -2,6 +2,9 @@ node_modules/
 .DS_Store
 *.log
 
+# Browser-verification artifacts (screenshots, run logs)
+output/
+
 # Build artifacts + signing key (never commit the key)
 dist/
 *.crx

@@ -23,26 +23,27 @@
   const NS = 'ytgs';
   const STYLE_ID = `${NS}-style`;
 
-  // Where the button group goes, best first. Each is a container that exists on
-  // the desktop watch page: the Share/Save pill row, then the like/dislike row,
-  // then the channel row, then the metadata block as a last resort. Appending
-  // (never wrapping) means we can't break YouTube's own layout.
-  const HOST_SELECTORS = [
-    '#top-level-buttons-computed',
-    '#inline-actions-inner',
-    '#owner-buttons',
-    '#meta',
-  ];
+  // Where the button group goes. The Share/Save pill row is the intended home.
+  // The rest are fallbacks for when YouTube's own markup changes. Appending
+  // (never wrapping) means we can't break YouTube's layout.
+  const PREFERRED_HOST = '#top-level-buttons-computed';
+  const FALLBACK_HOSTS = ['#inline-actions-inner', '#owner-buttons', '#meta'];
+
+  // On a cold load the Share row can take many seconds to render. Placing the
+  // group in a fallback first and moving it later would make it visibly jump,
+  // so wait this long for the preferred host before settling for a fallback.
+  const PREFERRED_HOST_WAIT_MS = 8000;
 
   // YouTube is a single page app: it swaps content in place and re-renders
   // chunks on its own, so we re-sync on its navigation events and on changes
   // inside the watch column. Both are cheap, and both no-op off watch pages.
-  const RETRY_DELAYS_MS = [0, 120, 400, 1200];
+  const RETRY_DELAYS_MS = [0, 120, 400, 1200, 3000, 6000];
 
   let lastReportedUrl = null;
   let bar = null;
   let syncTimer = 0;
   let observedRoot = null;
+  let watchPageSince = 0;
 
   function report() {
     if (location.href === lastReportedUrl) return;
@@ -140,7 +141,11 @@
   }
 
   function findHost() {
-    for (const selector of HOST_SELECTORS) {
+    const preferred = document.querySelector(PREFERRED_HOST);
+    if (preferred) return preferred;
+    // Only accept a fallback once the preferred host has had its chance.
+    if (Date.now() - watchPageSince < PREFERRED_HOST_WAIT_MS) return null;
+    for (const selector of FALLBACK_HOSTS) {
       const el = document.querySelector(selector);
       if (el) return el;
     }
@@ -153,8 +158,12 @@
     report();
     if (!isWatchPage() || PROMPT_MODES.length === 0) {
       bar?.remove();
+      watchPageSince = 0;
       return;
     }
+    // Start the patience clock on the first sync of this watch page, so an
+    // in-app navigation gets the same grace period as a cold load.
+    if (!watchPageSince) watchPageSince = Date.now();
     ensureStyle();
     const host = findHost();
     if (!host) {
